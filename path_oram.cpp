@@ -49,7 +49,7 @@ public:
     int getTotalNodes();
     int getTotalLeaves();
     int readLeaf(int branch);
-    int* getPath(int branch);
+    vector<int> getPath(int branch);
     unordered_map<int, int>& getPositionMap(); // for test purpose
     int access(int op, int block, int new_data);
     void printData();
@@ -132,10 +132,10 @@ int btree::getParent(int node){
     return floor((node - 1) / 2.0);
 }
 
-int* btree::getPath(int branch){
-    int* path = new int[height + 1];
+vector<int> btree::getPath(int branch){
+    vector<int> path;
     for(int i = height; i >= 0 ; i--){
-        path[i] = branch;
+        path.push_back(branch);
         branch = getParent(branch);
     } 
     return path;
@@ -186,7 +186,7 @@ void btree::writeBucket(int block, int new_data){
 
 }
 
-// returns: 0 for write operation and  the value for a read operation
+// returns: 0 for write operation and the value at a given block for a read operation
 int btree::access(int op, int block, int new_data){
     
     int noOfLeafs = getTotalLeaves();
@@ -201,20 +201,21 @@ int btree::access(int op, int block, int new_data){
 
     // Steps 3-5
     int leafNode = readLeaf(x);
-    int* path = getPath(leafNode);
-    printArr(path, 4);
-    printTree();
-    printVector(userData);
+    vector<int> path = getPath(leafNode);
+    // printVector(path);
+    // printTree();
+    
+    vector<int> blks;
     for(int i = 0; i <= height; i++){
         int node = path[i];
-
         int blk = tree[node];
-        cout<< blk<<endl;
-        stash.push_back(blk);  
-        printVector(stash);
-        int bucket = readBucket(blk);
-        stash_data[blk] = bucket;
-        printMap(stash_data);
+        
+        if (stash_data.find(blk) == stash_data.end())  {
+            stash.push_back(blk);
+            blks.push_back(blk);
+            stash_data[blk] = readBucket(blk);
+            tree[node] = inputSize;
+        } 
     }
 
     // Steps 6-9
@@ -229,10 +230,11 @@ int btree::access(int op, int block, int new_data){
         }
     }
     
+    // Steps 10-15
     for(int i = height; i >=0; i--){
         int node = path[i];
-        int n = tree[node];
-        writeBucket(n, stash_data[n]);
+        int blk = blks[i];
+        writeBucket(blk, stash_data[blk]);
         
         for(int j = 0 ; j < stash.size(); j++){
             if( stash[j] == inputSize){
@@ -241,26 +243,30 @@ int btree::access(int op, int block, int new_data){
             else{
                 int current_branch = pos_map[stash[j]];
                 int x = readLeaf(current_branch);
-                int* a = getPath(x);
-                if(node == a[j]) {
-                    tree[node] = stash[j];
-                    stash.erase(stash.begin() + j);
+                vector<int> a = getPath(x);
+                if(find(a.begin(),a.end(), node) != a.end()) {
+
+                    if(tree[node] == inputSize){
+                        tree[node] = stash[j];
+                        stash.erase(stash.begin() + j);
+                    }
+                    
                 }
             }
         }
     }
+    
     if(stash.size()==0){
         stash_data.clear();
     }
     else{
         unordered_map<int, int> temp;
-        for (auto& x : stash_data)
+        for (auto x : stash_data)
         {
-            if(std::find(stash.begin(), stash.end(), x.first) != stash.end())
+            if(find(stash.begin(), stash.end(), x.first) != stash.end())
                 temp[x.first] = stash_data[x.first];
         } 
         stash_data = temp;
-        temp.~unordered_map();
     }
     
     cout << "The final stash data: ";
@@ -289,10 +295,33 @@ int main(){
     tree->printData();
     printMap(tree->getPositionMap());
 
-    // cout << "Write Operation Output: " << tree->access(1, 2, 200) <<endl; // op 1: write the value 200 at index 2
-    // tree->printData();
+    cout << "Write Operation Output: " << tree->access(1, 2, 200) <<endl; // op 1: write the value 200 at index 2
+    cout<<"Write at index 2: ";
+    tree->printData();
     cout <<endl<<endl;
-    cout << "Read Operation Output: " << tree->access(0, 5, 0) <<endl; // op 0: read the value at index 
+    cout <<endl<<endl;
+    cout << "Read Operation Output: " << tree->access(0, 5, 0) <<endl; // op 0: read the value at index 5
+    cout<<"Read at index 5: ";
+    tree->printData();
+    cout <<endl<<endl;
+    cout <<endl<<endl;
+    cout << "Write Operation Output: " << tree->access(1, 7, 707) <<endl; // op 1: write the value 707 at index 7
+    cout<<"Write at index 7: ";
+    tree->printData();
+    cout <<endl<<endl;
+    cout <<endl<<endl;
+    cout << "Write Operation Output: " << tree->access(1, 0, 400) <<endl; // op 1: write the value 400 at index 0
+    cout<<"Write at index 0: ";
+    tree->printData();
+    cout <<endl<<endl;
+    cout <<endl<<endl;
+    cout << "Read Operation Output: " << tree->access(0, 3, 0) <<endl; // op 0: read the value at index 3
+    cout<<"Read at index 3: ";
+    tree->printData();
+    cout <<endl<<endl;
+    cout <<endl<<endl;
+    cout << "Read Operation Output: " << tree->access(0, 1, 0) <<endl; // op 0: read the value at index 1
+    cout<<"Read at index 1: ";
     tree->printData();
    
 
